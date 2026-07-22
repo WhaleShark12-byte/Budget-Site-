@@ -1,4 +1,3 @@
-html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -436,30 +435,21 @@ html
   }
 
   /* ---- Persistence ---- */
-  async function saveData(){
-    try{
-      await window.storage.set(STORAGE_KEY, JSON.stringify({
-        entries, bills, goal, goalArchive, categories
-      }), false);
-    }catch(err){
-      console.error('Could not save data', err);
-    }
+  function saveData(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      entries,bills,goal,goalArchive,categories
+    }));
   }
 
-  async function loadData(){
-    try{
-      const result = await window.storage.get(STORAGE_KEY, false);
-      if(result && result.value){
-        const data = JSON.parse(result.value);
-        entries = data.entries || [];
-        bills = data.bills || [];
-        goal = data.goal || goal;
-        goalArchive = data.goalArchive || [];
-        if(data.categories && data.categories.length) categories = data.categories;
-      }
-    }catch(err){
-      // Nothing saved yet — start fresh.
-    }
+  function loadData(){
+    const result=localStorage.getItem(STORAGE_KEY);
+    if(!result) return;
+    const data=JSON.parse(result);
+    entries=data.entries||[];
+    bills=data.bills||[];
+    goal=data.goal||goal;
+    goalArchive=data.goalArchive||[];
+    if(data.categories&&data.categories.length) categories=data.categories;
   }
 
   /* ---- Transactions ---- */
@@ -881,8 +871,8 @@ html
     historyResult.style.display = 'block';
   }
 
-  (async function init(){
-    await loadData();
+  (function init(){
+    loadData();
     renderCategoryOptions(); // reflect any custom categories that were loaded
     if(goal.target){
       goalNameEl.value = goal.name || '';
@@ -899,9 +889,3 @@ html
 </script>
 </body>
 </html>
-You are out of free messages until 2:20 AM
-
-
-
-
-Claude is AI and can make mistakes. Please
