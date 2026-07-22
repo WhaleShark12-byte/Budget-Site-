@@ -434,9 +434,9 @@
   }
 
   /* ---- Persistence ---- */
-  async function saveData(){
+  function saveData(){
     try{
-      await window.storage.set(STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
         entries,bills,goal,goalArchive,categories
       }));
     }catch(err){
@@ -444,11 +444,11 @@
     }
   }
 
-  async function loadData(){
+  function loadData(){
     try{
-      const result = await window.storage.get(STORAGE_KEY);
+      const result = localStorage.getItem(STORAGE_KEY);
       if(!result) return;
-      const data = JSON.parse(result.value);
+      const data = JSON.parse(result);
       entries=data.entries||[];
       bills=data.bills||[];
       goal=data.goal||goal;
@@ -936,8 +936,8 @@
     renderHistory();
   }
 
-  (async function init(){
-    await loadData();
+  (function init(){
+    loadData();
     renderCategoryOptions(); // reflect any custom categories that were loaded
     if(goal.target){
       goalNameEl.value = goal.name || '';
