@@ -241,6 +241,24 @@
   </section>
 
   <section class="card">
+    <h2>📌 Bills to pay</h2>
+    <div class="row2">
+      <div class="field"><label for="billName">Bill</label><input type="text" id="billName" placeholder="e.g. rent, phone"></div>
+      <div class="field"><label for="billAmt">Amount</label><input type="number" id="billAmt" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="field"><label for="billDue">Due date</label><input type="date" id="billDue"></div>
+    <label class="recur-check"><input type="checkbox" id="billRecurring"> 🔁 Repeats monthly</label>
+    <button class="btn expense" id="addBillBtn">Add bill</button>
+
+    <div class="save-remaining" id="monthlyPaidBox" style="margin-top:14px;">
+      <div class="lbl" id="monthlyPaidLabel">Paid this month</div>
+      <div class="amt" id="monthlyPaidAmt">$0.00</div>
+    </div>
+
+    <div id="billsList"></div>
+  </section>
+
+  <section class="card">
     <h2>🎯 Savings goal</h2>
     <div class="row2">
       <div class="field"><label for="goalName">Saving for</label><input type="text" id="goalName" placeholder="e.g. new laptop"></div>
@@ -264,24 +282,6 @@
       <div id="goalHistory"></div>
       <button class="btn gold" id="newGoalBtn" style="display:none;margin-top:12px;">🎉 Start a new goal</button>
     </div>
-  </section>
-
-  <section class="card">
-    <h2>📌 Bills to pay</h2>
-    <div class="row2">
-      <div class="field"><label for="billName">Bill</label><input type="text" id="billName" placeholder="e.g. rent, phone"></div>
-      <div class="field"><label for="billAmt">Amount</label><input type="number" id="billAmt" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
-    </div>
-    <div class="field"><label for="billDue">Due date</label><input type="date" id="billDue"></div>
-    <label class="recur-check"><input type="checkbox" id="billRecurring"> 🔁 Repeats monthly</label>
-    <button class="btn expense" id="addBillBtn">Add bill</button>
-
-    <div class="save-remaining" id="monthlyPaidBox" style="margin-top:14px;">
-      <div class="lbl" id="monthlyPaidLabel">Paid this month</div>
-      <div class="amt" id="monthlyPaidAmt">$0.00</div>
-    </div>
-
-    <div id="billsList"></div>
   </section>
 
   <div class="tape-head">
@@ -769,14 +769,28 @@
 
   /* ---- Goal history deletion ---- */
   function deleteReachedGoal(id){
-    if(goal.id && String(goal.id) === String(id)){
-      // It's still the active goal — just clear its "reached" mark so it
-      // drops out of history. The goal itself (and its saved progress) stays.
-      goal = { ...goal, reachedDate: null };
+    const isCurrent = goal.id && String(goal.id) === String(id);
+    const target = isCurrent ? goal : goalArchive.find(g => String(g.id) === String(id));
+    if(!target) return;
+
+    // Reverse any balance transactions this goal's saved/withdrawn history created.
+    const txIds = (target.history || []).map(h => h.txId).filter(Boolean);
+    if(txIds.length){
+      entries = entries.filter(e => !txIds.includes(e.id));
+    }
+
+    if(isCurrent){
+      goal = { id:null, name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+      goalNameEl.value = '';
+      goalTargetEl.value = '';
+      goalSavedEl.value = '';
+      goalStartEl.value = new Date().toISOString().slice(0,10);
       renderGoal();
     } else {
       goalArchive = goalArchive.filter(g => String(g.id) !== String(id));
     }
+
+    renderTx();
     renderHistory();
     saveData();
   }
@@ -846,7 +860,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             <div class="amt">${fmt(g.target)}</div>
-            <button class="del" data-del-goal="${g.id}" aria-label="Remove from history">✕</button>
+            <button class="del" data-del-goal="${g.id}" aria-label="Delete this goal">✕</button>
           </div>
         </div>`;
       }).join('');
@@ -862,7 +876,10 @@
             <div class="name">${escapeHtml(b.name)}</div>
             <div class="dates">Due ${fmtDate(b.due)} · Paid ${fmtDate(b.paidDate)}</div>
           </div>
-          <div class="amt">${fmt(b.amount)}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="amt">${fmt(b.amount)}</div>
+            <button class="del" data-del-bill="${b.id}" aria-label="Delete bill">✕</button>
+          </div>
         </div>`).join('');
     }
 
@@ -888,7 +905,10 @@
             <div class="note">${escapeHtml(e.note)}</div>
             <div class="date">${escapeHtml(e.category)} · ${fmtDate(e.date)}</div>
           </div>
-          <div class="amt ${e.type}">${e.type==='income' ? '+' : '−'}${fmt(e.amount)}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="amt ${e.type}">${e.type==='income' ? '+' : '−'}${fmt(e.amount)}</div>
+            <button class="del" data-del-tx="${e.id}" aria-label="Delete transaction">✕</button>
+          </div>
         </div>`).join('');
     }
 
@@ -896,6 +916,24 @@
     historyResult.style.display = 'block';
     historyResult.querySelectorAll('[data-del-goal]').forEach(btn =>
       btn.addEventListener('click', () => deleteReachedGoal(btn.dataset.delGoal)));
+    historyResult.querySelectorAll('[data-del-bill]').forEach(btn =>
+      btn.addEventListener('click', () => deleteHistoryBill(Number(btn.dataset.delBill))));
+    historyResult.querySelectorAll('[data-del-tx]').forEach(btn =>
+      btn.addEventListener('click', () => deleteHistoryTx(Number(btn.dataset.delTx))));
+  }
+
+  // Deleting a bill from the history view removes it (and any linked
+  // transaction) completely, then refreshes the history so it disappears.
+  function deleteHistoryBill(id){
+    removeBill(id);
+    renderHistory();
+  }
+
+  // Deleting a transaction from the history view removes it completely,
+  // then refreshes the history so it disappears.
+  function deleteHistoryTx(id){
+    removeEntry(id);
+    renderHistory();
   }
 
   (async function init(){
