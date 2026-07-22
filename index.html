@@ -1,3 +1,4 @@
+html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -306,9 +307,9 @@
 
 <script>
 (function(){
-  // In-memory data — resets on page reload. See note at the bottom
-  // of this script for how to persist it with localStorage when
-  // you host this file on your own site.
+  // Data persists between visits using the built-in storage API —
+  // see loadData()/saveData() near the bottom of this script.
+  const STORAGE_KEY = 'moneyShark';
   let entries = [];
   let bills = [];
   let goal = { name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
@@ -389,6 +390,7 @@
     newCategoryInput.value = '';
     newCategoryField.style.display = 'none';
     renderCategoryOptions(name);
+    saveData();
   }
   newCategoryAddBtn.addEventListener('click', addNewCategory);
   newCategoryInput.addEventListener('keydown', e => { if(e.key === 'Enter') addNewCategory(); });
@@ -433,6 +435,33 @@
     return d.innerHTML;
   }
 
+  /* ---- Persistence ---- */
+  async function saveData(){
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify({
+        entries, bills, goal, goalArchive, categories
+      }), false);
+    }catch(err){
+      console.error('Could not save data', err);
+    }
+  }
+
+  async function loadData(){
+    try{
+      const result = await window.storage.get(STORAGE_KEY, false);
+      if(result && result.value){
+        const data = JSON.parse(result.value);
+        entries = data.entries || [];
+        bills = data.bills || [];
+        goal = data.goal || goal;
+        goalArchive = data.goalArchive || [];
+        if(data.categories && data.categories.length) categories = data.categories;
+      }
+    }catch(err){
+      // Nothing saved yet — start fresh.
+    }
+  }
+
   /* ---- Transactions ---- */
   function addEntry(){
     const amt = parseFloat(amountEl.value);
@@ -447,8 +476,9 @@
     });
     amountEl.value = ''; noteEl.value = ''; amountEl.focus();
     renderTx();
+    saveData();
   }
-  function removeEntry(id){ entries = entries.filter(e => e.id !== id); renderTx(); }
+  function removeEntry(id){ entries = entries.filter(e => e.id !== id); renderTx(); saveData(); }
 
   function renderTx(){
     const income = entries.filter(e => e.type==='income').reduce((s,e)=>s+e.amount,0);
@@ -544,6 +574,7 @@
     };
     renderGoal();
     renderTx();
+    saveData();
   }
 
   function startNewGoal(){
@@ -557,6 +588,7 @@
     goalStartEl.value = new Date().toISOString().slice(0,10);
     renderGoal();
     goalNameEl.focus();
+    saveData();
   }
 
   function renderGoal(){
@@ -618,6 +650,7 @@
     });
     billNameEl.value=''; billAmtEl.value=''; billDueEl.value=''; billRecurringEl.checked = false;
     renderBills();
+    saveData();
   }
 
   // Adds one calendar month to an ISO date string, keeping the day-of-month
@@ -677,6 +710,7 @@
 
     renderBills();
     renderTx();
+    saveData();
   }
 
   function removeBill(id){
@@ -687,6 +721,7 @@
     bills = bills.filter(b => b.id !== id);
     renderBills();
     renderTx();
+    saveData();
   }
 
   function billStatus(b){
@@ -846,18 +881,27 @@
     historyResult.style.display = 'block';
   }
 
-  renderTx();
-  renderBills();
-  renderGoal();
-  renderHistory();
-
-  /* To persist data across reloads when self-hosting, save/load
-     `entries`, `bills`, and `goal` with localStorage, e.g.:
-       localStorage.setItem('moneyBuddy', JSON.stringify({entries, bills, goal}));
-       const saved = JSON.parse(localStorage.getItem('moneyBuddy') || '{}');
-     Call the save line at the end of each add/toggle/remove function,
-     and load once before the first render. */
+  (async function init(){
+    await loadData();
+    renderCategoryOptions(); // reflect any custom categories that were loaded
+    if(goal.target){
+      goalNameEl.value = goal.name || '';
+      goalTargetEl.value = goal.target || '';
+      goalSavedEl.value = goal.saved || '';
+      goalStartEl.value = goal.start || new Date().toISOString().slice(0,10);
+    }
+    renderTx();
+    renderBills();
+    renderGoal();
+    renderHistory();
+  })();
 })();
 </script>
 </body>
 </html>
+You are out of free messages until 2:20 AM
+
+
+
+
+Claude is AI and can make mistakes. Please
