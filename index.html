@@ -1,1 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Money Shark — Budget Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#fdf1f7;
+    --bg2:#f0f3ff;
+    --ink:#5c5470;
+    --ink-soft:#8b839c;
+    --card:#ffffff;
+    --pink:#ff8fae;
+    --pink-bg:#ffe4ec;
+    --mint:#3fc7a6;
+    --mint-bg:#ddf6ee;
+    --lav:#9b8cf2;
+    --lav-bg:#ece7fe;
+    --gold:#ffb84d;
+    --gold-bg:#fff2de;
+    --red:#ff6b6b;
+    --shadow: 0 14px 30px -14px rgba(155,120,180,.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:linear-gradient(160deg,var(--bg1),var(--bg2) 55%,#eef9f4 100%);
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:'Nunito',sans-serif;
+    min-height:100vh;
+    padding:22px 12px 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,.display{font-family:'Quicksand',sans-serif;}
+  .wrap{max-width:460px;margin:0 auto;}
 
+  header.masthead{text-align:center;margin-bottom:18px;}
+  header.masthead h1{
+    font-size:26px;font-weight:700;margin:0;color:var(--ink);
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  header.masthead .sub{font-size:13px;color:var(--ink-soft);margin-top:4px;font-weight:600;}
+
+  .card{
+    background:var(--card);
+    border-radius:22px;
+    padding:20px;
+    margin-bottom:16px;
+    box-shadow:var(--shadow);
+  }
+  .card h2{
+    font-size:16px;font-weight:700;margin:0 0 12px;
+    display:flex;align-items:center;gap:6px;color:var(--ink);
+  }
+
+  /* Balance */
+  .balance-card{
+    background:linear-gradient(135deg,var(--lav),#c6a8ff);
+    color:#fff;
+    text-align:center;
+    padding:26px 20px;
+  }
+  .balance-card .bal-label{font-size:12px;font-weight:700;letter-spacing:.04em;opacity:.85;text-transform:uppercase;}
+  .balance-card .bal-amount{font-family:'Quicksand',sans-serif;font-size:42px;font-weight:700;margin:2px 0 14px;}
+  .mini-stats{display:flex;gap:10px;}
+  .mini-stat{flex:1;background:rgba(255,255,255,.22);border-radius:14px;padding:10px;backdrop-filter:blur(2px);}
+  .mini-stat .k{font-size:11px;font-weight:700;opacity:.9;display:flex;align-items:center;gap:4px;justify-content:center;}
+  .mini-stat .v{font-size:16px;font-weight:800;margin-top:2px;}
+
+  /* pill toggle */
+  .toggle-row{display:flex;background:var(--pink-bg);border-radius:999px;padding:4px;margin-bottom:14px;}
+  .toggle-row button{
+    flex:1;border:none;background:transparent;padding:9px 0;font-family:'Nunito',sans-serif;
+    font-size:13px;font-weight:800;border-radius:999px;cursor:pointer;color:#b06a80;
+  }
+  .toggle-row button.active.income{background:var(--mint);color:#fff;}
+  .toggle-row button.active.expense{background:var(--pink);color:#fff;}
+
+  .field{margin-bottom:12px;}
+  .field label{display:block;font-size:11px;font-weight:700;color:var(--ink-soft);margin-bottom:5px;}
+  .field input, .field select{
+    width:100%;font-family:'Nunito',sans-serif;font-size:15px;font-weight:600;
+    padding:11px 12px;border:2px solid var(--lav-bg);border-radius:14px;
+    background:#fbfaff;color:var(--ink);-webkit-appearance:none;appearance:none;
+  }
+  .field input:focus, .field select:focus{outline:none;border-color:var(--lav);}
+  .row2{display:flex;gap:10px;}
+  .row2 .field{flex:1;}
+
+  .btn{
+    width:100%;border:none;padding:13px;border-radius:14px;font-family:'Quicksand',sans-serif;
+    font-weight:700;font-size:14px;cursor:pointer;color:#fff;transition:transform .08s ease;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn.income{background:var(--mint);}
+  .btn.expense{background:var(--pink);}
+  .btn.lav{background:var(--lav);}
+  .btn.gold{background:var(--gold);}
+
+  /* Savings */
+  .save-remaining{
+    background:var(--gold-bg);border-radius:16px;padding:14px;text-align:center;margin-bottom:12px;
+  }
+  .save-remaining .amt{font-family:'Quicksand',sans-serif;font-size:26px;font-weight:700;color:#b3781a;}
+  .save-remaining .lbl{font-size:11px;font-weight:700;color:#b3781a;text-transform:uppercase;letter-spacing:.03em;}
+  .progress-track{
+    background:var(--gold-bg);border-radius:999px;height:16px;overflow:hidden;margin:10px 0 6px;
+  }
+  .progress-fill{
+    height:100%;background:linear-gradient(90deg,#ffcf7d,var(--gold));border-radius:999px;
+    transition:width .3s ease;
+  }
+  .progress-caption{font-size:12px;color:var(--ink-soft);font-weight:700;text-align:center;}
+
+  /* Bills */
+  .bill{
+    display:flex;align-items:center;gap:10px;padding:12px;border-radius:16px;
+    background:var(--lav-bg);margin-bottom:8px;
+  }
+  .bill.paid{background:var(--mint-bg);}
+  .bill.overdue{background:#ffe3e3;}
+  .bill .check{
+    width:26px;height:26px;border-radius:50%;border:2px solid var(--lav);background:#fff;
+    flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;
+  }
+  .bill.paid .check{background:var(--mint);border-color:var(--mint);}
+  .bill.overdue .check{border-color:var(--red);}
+  .bill .info{flex:1;min-width:0;}
+  .bill .name{font-weight:800;font-size:14px;}
+  .bill.paid .name{text-decoration:line-through;opacity:.7;}
+  .bill .due{font-size:11px;color:var(--ink-soft);font-weight:700;}
+  .bill .amt{font-weight:800;font-size:14px;white-space:nowrap;}
+  .bill .del{border:none;background:none;color:#a89bc2;font-size:15px;cursor:pointer;padding:2px 4px;}
+  .badge{
+    font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:999px;
+    background:var(--red);color:#fff;margin-left:6px;letter-spacing:.03em;
+  }
+  .badge.recur{background:var(--lav);}
+  .recur-check{
+    display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink-soft);
+    margin:-2px 0 12px;cursor:pointer;
+  }
+  .recur-check input{width:16px;height:16px;accent-color:var(--lav);cursor:pointer;}
+
+  /* Transactions */
+  .tape-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:0 2px;}
+  .filter-select{
+    font-family:'Nunito',sans-serif;font-size:11px;font-weight:700;background:var(--card);
+    color:var(--ink-soft);border:2px solid var(--lav-bg);border-radius:10px;padding:5px 8px;
+  }
+  .tx{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 4px;border-bottom:1px dashed var(--lav-bg);}
+  .tx:last-child{border-bottom:none;}
+  .tx .cat{font-size:10px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;}
+  .tx .note{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tx .date{font-size:10px;color:var(--ink-soft);margin-top:1px;}
+  .tx .right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+  .tx .amt{font-weight:800;font-size:14px;}
+  .tx .amt.income{color:var(--mint);}
+  .tx .amt.expense{color:var(--pink);}
+  .tx .del{border:none;background:none;color:#c9bfe0;font-size:15px;cursor:pointer;padding:2px 4px;}
+
+  .empty{padding:20px 8px;text-align:center;color:var(--ink-soft);font-size:13px;font-weight:600;}
+
+  /* History */
+  .hist-stats{display:flex;gap:10px;margin-bottom:10px;}
+  .hist-stat{flex:1;border-radius:14px;padding:10px;text-align:center;}
+  .hist-stat.income{background:var(--mint-bg);color:#1f7a5e;}
+  .hist-stat.expense{background:var(--pink-bg);color:#b0446a;}
+  .hist-stat .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.02em;}
+  .hist-stat .v{font-size:18px;font-weight:800;margin-top:2px;}
+  .hist-net{text-align:center;font-weight:800;font-size:14px;color:var(--ink);margin-bottom:14px;}
+  .hist-subhead{font-size:12px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;margin:14px 0 8px;}
+  .hist-bill{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:10px 12px;border-radius:14px;background:var(--lav-bg);margin-bottom:6px;font-size:13px;
+  }
+  .hist-bill .name{font-weight:800;}
+  .hist-bill .dates{font-size:11px;color:var(--ink-soft);font-weight:700;}
+  .hist-bill .amt{font-weight:800;white-space:nowrap;}
+  .hist-bill .del{border:none;background:none;color:#a89bc2;font-size:15px;cursor:pointer;padding:2px 4px;}
+  .hist-tx{
+    display:flex;justify-content:space-between;align-items:center;gap:8px;
+    padding:9px 4px;border-bottom:1px dashed var(--lav-bg);font-size:13px;
+  }
+  .hist-tx:last-child{border-bottom:none;}
+  .hist-tx .note{font-weight:700;}
+  .hist-tx .date{font-size:11px;color:var(--ink-soft);}
+  .hist-tx .amt{font-weight:800;}
+  .hist-tx .amt.income{color:var(--mint);}
+  .hist-tx .amt.expense{color:var(--pink);}
+
+  footer{text-align:center;color:#a99fc0;font-size:11px;margin-top:20px;font-weight:600;}
+
+  *:focus-visible{outline:2px solid var(--lav);outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>🦈 Money Shark</h1>
+  </header>
+
+  <section class="card balance-card">
+    <div class="bal-label">Current Balance</div>
+    <div class="bal-amount" id="balanceAmt">$0.00</div>
+    <div class="mini-stats">
+      <div class="mini-stat"><div class="k" id="inLabel">💚 In</div><div class="v" id="totalIn">$0.00</div></div>
+      <div class="mini-stat"><div class="k" id="outLabel">💸 Out</div><div class="v" id="totalOut">$0.00</div></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>🐣 Add a transaction</h2>
+    <div class="toggle-row">
+      <button type="button" class="active income" id="btnIncome">Income</button>
+      <button type="button" class="expense" id="btnExpense">Expense</button>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="amount">Amount</label><input type="number" id="amount" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="field"><label for="date">Date</label><input type="date" id="date"></div>
+    </div>
+    <div class="field"><label for="note">What was it for?</label><input type="text" id="note" placeholder="e.g. groceries, paycheck"></div>
+    <div class="field">
+      <label for="category">Category</label>
+      <select id="category"></select>
+    </div>
+    <div class="field" id="newCategoryField" style="display:none;">
+      <label for="newCategoryInput">New category name</label>
+      <div class="row2">
+        <input type="text" id="newCategoryInput" placeholder="e.g. pet stuff" style="flex:1;">
+        <button type="button" class="btn lav" id="newCategoryAddBtn" style="width:auto;padding:0 16px;">Add</button>
+      </div>
+    </div>
+    <button class="btn lav" id="addTxBtn">Add entry</button>
+  </section>
+
+  <section class="card">
+    <h2>📌 Bills to pay</h2>
+    <div class="row2">
+      <div class="field"><label for="billName">Bill</label><input type="text" id="billName" placeholder="e.g. rent, phone"></div>
+      <div class="field"><label for="billAmt">Amount</label><input type="number" id="billAmt" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="field"><label for="billDue">Due date</label><input type="date" id="billDue"></div>
+    <label class="recur-check"><input type="checkbox" id="billRecurring"> 🔁 Repeats monthly</label>
+    <button class="btn expense" id="addBillBtn">Add bill</button>
+
+    <div class="save-remaining" id="monthlyPaidBox" style="margin-top:14px;">
+      <div class="lbl" id="monthlyPaidLabel">Paid this month</div>
+      <div class="amt" id="monthlyPaidAmt">$0.00</div>
+    </div>
+
+    <div id="billsList"></div>
+  </section>
+
+  <section class="card">
+    <h2>🎯 Savings goal</h2>
+    <div class="row2">
+      <div class="field"><label for="goalName">Saving for</label><input type="text" id="goalName" placeholder="e.g. new laptop"></div>
+      <div class="field"><label for="goalTarget">Target</label><input type="number" id="goalTarget" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="goalSaved">Saved so far</label><input type="number" id="goalSaved" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="field"><label for="goalStart">Start date</label><input type="date" id="goalStart"></div>
+    </div>
+    <button class="btn gold" id="saveGoalBtn">Update goal</button>
+
+    <div id="goalResult" style="margin-top:14px;display:none;">
+      <div class="save-remaining">
+        <div class="lbl" id="goalTitle">Still need to save</div>
+        <div class="amt" id="goalRemaining">$0.00</div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="goalFill" style="width:0%;"></div></div>
+      <div class="progress-caption" id="goalCaption">0% there — you've got this! 🌟</div>
+      <div class="progress-caption" id="goalStartCaption" style="margin-top:4px;"></div>
+      <div class="hist-subhead" id="goalHistoryHead" style="display:none;">Update history</div>
+      <div id="goalHistory"></div>
+      <button class="btn gold" id="newGoalBtn" style="display:none;margin-top:12px;">🎉 Start a new goal</button>
+    </div>
+  </section>
+
+  <div class="tape-head">
+    <h2 style="margin:0;">📝 Transactions</h2>
+    <select class="filter-select" id="filterSelect">
+      <option value="all">All</option>
+      <option value="income">Income only</option>
+      <option value="expense">Expense only</option>
+    </select>
+  </div>
+  <section class="card" id="tape"></section>
+
+  <section class="card">
+    <h2>📅 Month history</h2>
+    <div class="row2">
+      <div class="field" style="flex:2;"><label for="historyMonth">Pick a month</label><input type="month" id="historyMonth"></div>
+      <button class="btn lav" id="viewHistoryBtn" style="width:auto;padding:0 18px;align-self:flex-end;margin-bottom:12px;">View</button>
+    </div>
+    <div id="historyResult" style="display:none;"></div>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  const STORAGE_KEY = 'moneyShark';
+  let entries = [];
+  let bills = [];
+  let goal = { id:null, name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+  let goalArchive = []; // previously completed goals, kept for month-history lookups
+  let currentType = 'income';
+  let filter = 'all';
+
+  const amountEl = document.getElementById('amount');
+  const dateEl = document.getElementById('date');
+  const noteEl = document.getElementById('note');
+  const categoryEl = document.getElementById('category');
+  const btnIncome = document.getElementById('btnIncome');
+  const btnExpense = document.getElementById('btnExpense');
+  const addTxBtn = document.getElementById('addTxBtn');
+  const tapeEl = document.getElementById('tape');
+  const balanceAmt = document.getElementById('balanceAmt');
+  const totalIn = document.getElementById('totalIn');
+  const totalOut = document.getElementById('totalOut');
+  const filterSelect = document.getElementById('filterSelect');
+
+  const goalNameEl = document.getElementById('goalName');
+  const goalTargetEl = document.getElementById('goalTarget');
+  const goalSavedEl = document.getElementById('goalSaved');
+  const goalStartEl = document.getElementById('goalStart');
+  const saveGoalBtn = document.getElementById('saveGoalBtn');
+  const goalResult = document.getElementById('goalResult');
+  const goalTitle = document.getElementById('goalTitle');
+  const goalRemaining = document.getElementById('goalRemaining');
+  const goalFill = document.getElementById('goalFill');
+  const goalCaption = document.getElementById('goalCaption');
+  const goalStartCaption = document.getElementById('goalStartCaption');
+  const goalHistoryHead = document.getElementById('goalHistoryHead');
+  const goalHistoryEl = document.getElementById('goalHistory');
+  const newGoalBtn = document.getElementById('newGoalBtn');
+  goalStartEl.value = new Date().toISOString().slice(0,10);
+
+  const billNameEl = document.getElementById('billName');
+  const billAmtEl = document.getElementById('billAmt');
+  const billDueEl = document.getElementById('billDue');
+  const billRecurringEl = document.getElementById('billRecurring');
+  const addBillBtn = document.getElementById('addBillBtn');
+  const billsList = document.getElementById('billsList');
+
+  const historyMonthEl = document.getElementById('historyMonth');
+  const viewHistoryBtn = document.getElementById('viewHistoryBtn');
+  const historyResult = document.getElementById('historyResult');
+  historyMonthEl.value = new Date().toISOString().slice(0,7);
+  viewHistoryBtn.addEventListener('click', renderHistory);
+
+  let categories = ['General','Food','Transport','Housing','Bills','Fun','Health','Income','Other'];
+  const newCategoryField = document.getElementById('newCategoryField');
+  const newCategoryInput = document.getElementById('newCategoryInput');
+  const newCategoryAddBtn = document.getElementById('newCategoryAddBtn');
+  const ADD_NEW_VALUE = '__add_new__';
+
+  function renderCategoryOptions(selected){
+    categoryEl.innerHTML = categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('')
+      + `<option value="${ADD_NEW_VALUE}">＋ Add new category…</option>`;
+    if(selected && categories.includes(selected)) categoryEl.value = selected;
+  }
+  renderCategoryOptions();
+
+  categoryEl.addEventListener('change', () => {
+    if(categoryEl.value === ADD_NEW_VALUE){
+      newCategoryField.style.display = 'block';
+      newCategoryInput.focus();
+    } else {
+      newCategoryField.style.display = 'none';
+    }
+  });
+
+  function addNewCategory(){
+    const name = newCategoryInput.value.trim();
+    if(!name){ flashError(newCategoryInput); return; }
+    if(!categories.some(c => c.toLowerCase() === name.toLowerCase())){
+      categories.push(name);
+    }
+    newCategoryInput.value = '';
+    newCategoryField.style.display = 'none';
+    renderCategoryOptions(name);
+    saveData();
+  }
+  newCategoryAddBtn.addEventListener('click', addNewCategory);
+  newCategoryInput.addEventListener('keydown', e => { if(e.key === 'Enter') addNewCategory(); });
+
+  dateEl.value = new Date().toISOString().slice(0,10);
+
+  btnIncome.addEventListener('click', () => setType('income'));
+  btnExpense.addEventListener('click', () => setType('expense'));
+  filterSelect.addEventListener('change', e => { filter = e.target.value; renderTx(); });
+  addTxBtn.addEventListener('click', addEntry);
+  amountEl.addEventListener('keydown', e => { if(e.key === 'Enter') addEntry(); });
+  saveGoalBtn.addEventListener('click', updateGoal);
+  newGoalBtn.addEventListener('click', startNewGoal);
+  addBillBtn.addEventListener('click', addBill);
+
+  function setType(t){
+    currentType = t;
+    btnIncome.classList.toggle('active', t === 'income');
+    btnExpense.classList.toggle('active', t === 'expense');
+    categoryEl.value = t === 'income' ? 'Income' : 'General';
+  }
+
+  function flashError(el){
+    el.style.borderColor = '#ff6b6b';
+    el.focus();
+    setTimeout(() => el.style.borderColor = '', 900);
+  }
+
+  function fmt(n){
+    const sign = n < 0 ? '-' : '';
+    return sign + '$' + Math.abs(n).toFixed(2);
+  }
+
+  function fmtDate(iso){
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+  }
+
+  function escapeHtml(str){
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  /* ---- Persistence ---- */
+  function saveData(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        entries,bills,goal,goalArchive,categories
+      }));
+    }catch(err){
+      console.error('Storage save error:', err);
+    }
+  }
+
+  function loadData(){
+    try{
+      const result = localStorage.getItem(STORAGE_KEY);
+      if(!result) return;
+      const data = JSON.parse(result);
+      entries=data.entries||[];
+      bills=data.bills||[];
+      goal=data.goal||goal;
+      goalArchive=data.goalArchive||[];
+      if(data.categories&&data.categories.length) categories=data.categories;
+    }catch(err){
+      console.log('No existing data found, starting fresh.');
+    }
+  }
+
+  /* ---- Transactions ---- */
+  function addEntry(){
+    const amt = parseFloat(amountEl.value);
+    if(!amt || amt <= 0){ flashError(amountEl); return; }
+    entries.unshift({
+      id: Date.now(),
+      type: currentType,
+      amount: Math.round(amt*100)/100,
+      note: noteEl.value.trim() || (currentType === 'income' ? 'Income' : 'Expense'),
+      category: categoryEl.value,
+      date: dateEl.value || new Date().toISOString().slice(0,10)
+    });
+    amountEl.value = ''; noteEl.value = ''; amountEl.focus();
+    renderTx();
+    saveData();
+  }
+  function removeEntry(id){ entries = entries.filter(e => e.id !== id); renderTx(); saveData(); }
+
+  function renderTx(){
+    const income = entries.filter(e => e.type==='income').reduce((s,e)=>s+e.amount,0);
+    const expense = entries.filter(e => e.type==='expense').reduce((s,e)=>s+e.amount,0);
+    balanceAmt.textContent = fmt(income - expense);
+
+    const now = new Date();
+    const isThisMonth = iso => {
+      const d = new Date(iso + 'T00:00:00');
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    };
+    const monthIncome = entries.filter(e => e.type==='income' && isThisMonth(e.date)).reduce((s,e)=>s+e.amount,0);
+    const monthExpense = entries.filter(e => e.type==='expense' && isThisMonth(e.date)).reduce((s,e)=>s+e.amount,0);
+    const monthName = now.toLocaleDateString(undefined,{month:'short'});
+    document.getElementById('inLabel').textContent = `💚 In (${monthName})`;
+    document.getElementById('outLabel').textContent = `💸 Out (${monthName})`;
+    totalIn.textContent = fmt(monthIncome);
+    totalOut.textContent = fmt(monthExpense);
+
+    const visible = entries.filter(e => filter==='all' || e.type===filter);
+    if(visible.length===0){
+      tapeEl.innerHTML = '<div class="empty">nothing recorded yet — add your first entry above 🌱</div>';
+      return;
+    }
+    tapeEl.innerHTML = visible.map(e => `
+      <div class="tx">
+        <div class="left" style="min-width:0;">
+          <div class="cat">${escapeHtml(e.category)}</div>
+          <div class="note">${escapeHtml(e.note)}</div>
+          <div class="date">${fmtDate(e.date)}</div>
+        </div>
+        <div class="right">
+          <div class="amt ${e.type}">${e.type==='income' ? '+' : '−'}${fmt(e.amount)}</div>
+          <button class="del" data-id="${e.id}" aria-label="Delete entry">✕</button>
+        </div>
+      </div>`).join('');
+    tapeEl.querySelectorAll('.del').forEach(btn => btn.addEventListener('click', () => removeEntry(Number(btn.dataset.id))));
+  }
+
+  /* ---- Savings goal ---- */
+  function updateGoal(){
+    const target = parseFloat(goalTargetEl.value);
+    if(!target || target <= 0){ flashError(goalTargetEl); return; }
+    const saved = Math.max(0, parseFloat(goalSavedEl.value) || 0);
+    const reached = saved >= target;
+    const name = goalNameEl.value.trim() || 'your goal';
+    const prevSaved = goal.saved || 0;
+    const delta = Math.round((saved - prevSaved) * 100) / 100;
+    const history = goal.history || [];
+
+    let txId = null;
+    if(delta > 0){
+      // Money moving into savings comes out of the current balance as an expense.
+      txId = Date.now();
+      entries.unshift({
+        id: txId,
+        type: 'expense',
+        amount: delta,
+        note: `Saved toward ${name}`,
+        category: 'Savings',
+        date: new Date().toISOString().slice(0,10)
+      });
+    } else if(delta < 0){
+      // Reducing the saved amount puts that money back into the balance.
+      txId = Date.now();
+      entries.unshift({
+        id: txId,
+        type: 'income',
+        amount: Math.abs(delta),
+        note: `Withdrew from ${name}`,
+        category: 'Savings',
+        date: new Date().toISOString().slice(0,10)
+      });
+    }
+
+    if(delta !== 0){
+      history.unshift({
+        id: Date.now() + 1,
+        date: new Date().toISOString().slice(0,10),
+        amount: delta,
+        total: saved,
+        txId
+      });
+    }
+
+    goal = {
+      id: goal.id || ('goal_' + Date.now()),
+      name,
+      target,
+      saved,
+      start: goalStartEl.value || new Date().toISOString().slice(0,10),
+      reachedDate: reached ? (goal.reachedDate || new Date().toISOString().slice(0,10)) : null,
+      history
+    };
+    renderGoal();
+    renderTx();
+    saveData();
+  }
+
+  function startNewGoal(){
+    if(goal.target){
+      goalArchive.push(goal);
+    }
+    goal = { id:null, name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+    goalNameEl.value = '';
+    goalTargetEl.value = '';
+    goalSavedEl.value = '';
+    goalStartEl.value = new Date().toISOString().slice(0,10);
+    renderGoal();
+    goalNameEl.focus();
+    saveData();
+  }
+
+  function renderGoal(){
+    if(!goal.target){ goalResult.style.display = 'none'; return; }
+    goalResult.style.display = 'block';
+    const remaining = Math.max(0, goal.target - goal.saved);
+    const pct = Math.min(100, Math.round((goal.saved / goal.target) * 100));
+    goalTitle.textContent = remaining > 0 ? `Still need to save for ${goal.name}` : `${goal.name} — goal reached!`;
+    goalRemaining.textContent = fmt(remaining);
+    goalFill.style.width = pct + '%';
+    goalCaption.textContent = remaining > 0
+      ? `${pct}% there — you've got this! 🌟`
+      : `100% there — go you! 🎉`;
+    newGoalBtn.style.display = (remaining <= 0) ? 'block' : 'none';
+
+    const history = goal.history || [];
+    if(history.length === 0){
+      goalHistoryHead.style.display = 'none';
+      goalHistoryEl.innerHTML = '';
+    } else {
+      goalHistoryHead.style.display = 'block';
+      goalHistoryEl.innerHTML = history.map(h => `
+        <div class="hist-tx">
+          <div>
+            <div class="note">${h.amount >= 0 ? 'Added' : 'Reduced by'} ${fmt(Math.abs(h.amount))}</div>
+            <div class="date">${fmtDate(h.date)} · total ${fmt(h.total)}</div>
+          </div>
+          <div class="amt ${h.amount >= 0 ? 'expense' : 'income'}">${h.amount >= 0 ? '−' : '+'}${fmt(Math.abs(h.amount))}</div>
+        </div>`).join('');
+    }
+
+    if(goal.start){
+      const today = new Date(); today.setHours(0,0,0,0);
+      const start = new Date(goal.start + 'T00:00:00');
+      const days = Math.max(0, Math.round((today - start) / 86400000));
+      goalStartCaption.textContent = days === 0
+        ? `Started today (${fmtDate(goal.start)})`
+        : `Started ${fmtDate(goal.start)} · ${days} day${days===1?'':'s'} in`;
+    } else {
+      goalStartCaption.textContent = '';
+    }
+  }
+
+  /* ---- Bills ---- */
+  function addBill(){
+    const amt = parseFloat(billAmtEl.value);
+    if(!billNameEl.value.trim()){ flashError(billNameEl); return; }
+    if(!amt || amt <= 0){ flashError(billAmtEl); return; }
+    if(!billDueEl.value){ flashError(billDueEl); return; }
+    bills.push({
+      id: Date.now(),
+      name: billNameEl.value.trim(),
+      amount: Math.round(amt*100)/100,
+      due: billDueEl.value,
+      paid: false,
+      paidDate: null,
+      recurring: billRecurringEl.checked,
+      txId: null
+    });
+    billNameEl.value=''; billAmtEl.value=''; billDueEl.value=''; billRecurringEl.checked = false;
+    renderBills();
+    saveData();
+  }
+
+  // Adds one calendar month to an ISO date string, keeping the day-of-month
+  // where possible (e.g. Jan 31 + 1 month -> Feb 28/29).
+  function addOneMonth(iso){
+    const d = new Date(iso + 'T00:00:00');
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + 1);
+    const daysInNext = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    d.setDate(Math.min(day, daysInNext));
+    return d.toISOString().slice(0,10);
+  }
+
+  function toggleBill(id){
+    const bill = bills.find(b => b.id === id);
+    if(!bill) return;
+
+    if(!bill.paid){
+      // Marking as paid: log it as an expense transaction pulled from balance.
+      const txId = Date.now();
+      entries.unshift({
+        id: txId,
+        type: 'expense',
+        amount: bill.amount,
+        note: bill.name,
+        category: 'Bills',
+        date: new Date().toISOString().slice(0,10)
+      });
+      bill.paid = true;
+      bill.paidDate = new Date().toISOString().slice(0,10);
+      bill.txId = txId;
+
+      // If it's a recurring bill, queue up next month's instance now
+      // so it shows as upcoming/due.
+      if(bill.recurring){
+        bills.push({
+          id: Date.now() + 1,
+          name: bill.name,
+          amount: bill.amount,
+          due: addOneMonth(bill.due),
+          paid: false,
+          paidDate: null,
+          recurring: true,
+          txId: null
+        });
+      }
+    } else {
+      // Undo: remove the linked expense transaction and reset the bill.
+      if(bill.txId){
+        entries = entries.filter(e => e.id !== bill.txId);
+      }
+      bill.paid = false;
+      bill.paidDate = null;
+      bill.txId = null;
+    }
+
+    renderBills();
+    renderTx();
+    saveData();
+  }
+
+  function removeBill(id){
+    const bill = bills.find(b => b.id === id);
+    if(bill && bill.txId){
+      entries = entries.filter(e => e.id !== bill.txId);
+    }
+    bills = bills.filter(b => b.id !== id);
+    renderBills();
+    renderTx();
+    saveData();
+  }
+
+  function billStatus(b){
+    if(b.paid) return {cls:'paid', label:'Paid ✓'};
+    const today = new Date(); today.setHours(0,0,0,0);
+    const due = new Date(b.due + 'T00:00:00');
+    const days = Math.round((due - today) / 86400000);
+    if(days < 0) return {cls:'overdue', label:`Overdue by ${Math.abs(days)}d`};
+    if(days === 0) return {cls:'overdue', label:'Due today'};
+    if(days <= 3) return {cls:'', label:`Due in ${days}d`};
+    return {cls:'', label:`Due ${fmtDate(b.due)}`};
+  }
+
+  function renderBills(){
+    const now = new Date();
+    const monthTotal = bills
+      .filter(b => b.paid && b.paidDate)
+      .filter(b => {
+        const d = new Date(b.paidDate + 'T00:00:00');
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      })
+      .reduce((s,b) => s + b.amount, 0);
+    document.getElementById('monthlyPaidAmt').textContent = fmt(monthTotal);
+    document.getElementById('monthlyPaidLabel').textContent =
+      'Paid this month (' + now.toLocaleDateString(undefined,{month:'long'}) + ')';
+
+    if(bills.length===0){
+      billsList.innerHTML = '<div class="empty">no bills yet — add one above 📎</div>';
+      return;
+    }
+    const sorted = [...bills].sort((a,b) => (a.paid - b.paid) || (new Date(a.due) - new Date(b.due)));
+    billsList.innerHTML = sorted.map(b => {
+      const st = billStatus(b);
+      return `
+      <div class="bill ${b.paid ? 'paid' : st.cls}">
+        <button class="check" data-id="${b.id}" aria-label="Toggle paid">${b.paid ? '✓' : ''}</button>
+        <div class="info">
+          <div class="name">${escapeHtml(b.name)}${b.recurring ? '<span class="badge recur">🔁 Monthly</span>' : ''}${(!b.paid && st.cls==='overdue') ? '<span class="badge">Overdue</span>' : ''}</div>
+          <div class="due">${b.paid ? `Due ${fmtDate(b.due)} · Paid ${fmtDate(b.paidDate)}` : st.label} · ${fmt(b.amount)}</div>
+        </div>
+        <button class="del" data-del="${b.id}" aria-label="Delete bill">✕</button>
+      </div>`;
+    }).join('');
+    billsList.querySelectorAll('.check').forEach(btn => btn.addEventListener('click', () => toggleBill(Number(btn.dataset.id))));
+    billsList.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => removeBill(Number(btn.dataset.del))));
+  }
+
+  /* ---- Goal history deletion ---- */
+  function deleteReachedGoal(id){
+    const isCurrent = goal.id && String(goal.id) === String(id);
+    const target = isCurrent ? goal : goalArchive.find(g => String(g.id) === String(id));
+    if(!target) return;
+
+    // Reverse any balance transactions this goal's saved/withdrawn history created.
+    const txIds = (target.history || []).map(h => h.txId).filter(Boolean);
+    if(txIds.length){
+      entries = entries.filter(e => !txIds.includes(e.id));
+    }
+
+    if(isCurrent){
+      goal = { id:null, name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+      goalNameEl.value = '';
+      goalTargetEl.value = '';
+      goalSavedEl.value = '';
+      goalStartEl.value = new Date().toISOString().slice(0,10);
+      renderGoal();
+    } else {
+      goalArchive = goalArchive.filter(g => String(g.id) !== String(id));
+    }
+
+    renderTx();
+    renderHistory();
+    saveData();
+  }
+
+  /* ---- Month history ---- */
+  function renderHistory(){
+    const val = historyMonthEl.value;
+    if(!val){ flashError(historyMonthEl); return; }
+    const [y, m] = val.split('-').map(Number);
+    const monthLabel = new Date(y, m-1, 1).toLocaleDateString(undefined,{month:'long', year:'numeric'});
+
+    const inMonth = iso => {
+      const d = new Date(iso + 'T00:00:00');
+      return d.getFullYear() === y && (d.getMonth()+1) === m;
+    };
+
+    const monthEntries = entries.filter(e => inMonth(e.date));
+    const income = monthEntries.filter(e => e.type==='income').reduce((s,e)=>s+e.amount,0);
+    const expense = monthEntries.filter(e => e.type==='expense').reduce((s,e)=>s+e.amount,0);
+    const net = income - expense;
+
+    const paidBills = bills.filter(b => b.paid && b.paidDate && inMonth(b.paidDate));
+    const dueBills = bills.filter(b => inMonth(b.due));
+
+    let html = `
+      <div class="hist-subhead">${escapeHtml(monthLabel)}</div>
+      <div class="hist-stats">
+        <div class="hist-stat income"><div class="k">💚 In</div><div class="v">${fmt(income)}</div></div>
+        <div class="hist-stat expense"><div class="k">💸 Out</div><div class="v">${fmt(expense)}</div></div>
+      </div>
+      <div class="hist-net">Net: ${net >= 0 ? '+' : '−'}${fmt(Math.abs(net))}</div>
+    `;
+
+    const catTotals = {};
+    monthEntries.filter(e => e.type === 'expense').forEach(e => {
+      catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
+    });
+    const catList = Object.entries(catTotals).sort((a,b) => b[1] - a[1]);
+
+    if(catList.length > 0){
+      html += `<div class="hist-subhead">Spent by category</div>`;
+      html += catList.map(([cat, amt]) => {
+        const pct = expense > 0 ? Math.round((amt / expense) * 100) : 0;
+        return `
+        <div class="hist-bill">
+          <div>
+            <div class="name">${escapeHtml(cat)}</div>
+            <div class="dates">${pct}% of spending</div>
+          </div>
+          <div class="amt">${fmt(amt)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    const reachedGoalsThisMonth = [...goalArchive, goal].filter(g => g.reachedDate && inMonth(g.reachedDate));
+    if(reachedGoalsThisMonth.length > 0){
+      html += `<div class="hist-subhead">Savings goal${reachedGoalsThisMonth.length>1?'s':''}</div>`;
+      html += reachedGoalsThisMonth.map(g => {
+        const daysToReach = g.start
+          ? Math.max(0, Math.round((new Date(g.reachedDate + 'T00:00:00') - new Date(g.start + 'T00:00:00')) / 86400000))
+          : null;
+        return `
+        <div class="hist-bill" style="background:var(--gold-bg);">
+          <div>
+            <div class="name">🎉 ${escapeHtml(g.name)} — reached!</div>
+            <div class="dates">Hit on ${fmtDate(g.reachedDate)}${daysToReach !== null ? ` · took ${daysToReach} day${daysToReach===1?'':'s'}` : ''}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="amt">${fmt(g.target)}</div>
+            <button class="del" data-del-goal="${g.id}" aria-label="Delete this goal">✕</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    html += `<div class="hist-subhead">Bills paid (${paidBills.length})</div>`;
+    if(paidBills.length === 0){
+      html += `<div class="empty">no bills marked paid this month</div>`;
+    } else {
+      html += paidBills.map(b => `
+        <div class="hist-bill">
+          <div>
+            <div class="name">${escapeHtml(b.name)}</div>
+            <div class="dates">Due ${fmtDate(b.due)} · Paid ${fmtDate(b.paidDate)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="amt">${fmt(b.amount)}</div>
+            <button class="del" data-del-bill="${b.id}" aria-label="Delete bill">✕</button>
+          </div>
+        </div>`).join('');
+    }
+
+    if(dueBills.length > 0){
+      html += `<div class="hist-subhead">Due this month (${dueBills.length})</div>`;
+      html += dueBills.map(b => `
+        <div class="hist-bill ${b.paid ? '' : ''}">
+          <div>
+            <div class="name">${escapeHtml(b.name)}${b.paid ? ' ✓' : ''}</div>
+            <div class="dates">Due ${fmtDate(b.due)}</div>
+          </div>
+          <div class="amt">${fmt(b.amount)}</div>
+        </div>`).join('');
+    }
+
+    html += `<div class="hist-subhead">Transactions (${monthEntries.length})</div>`;
+    if(monthEntries.length === 0){
+      html += `<div class="empty">no transactions this month</div>`;
+    } else {
+      html += monthEntries.map(e => `
+        <div class="hist-tx">
+          <div>
+            <div class="note">${escapeHtml(e.note)}</div>
+            <div class="date">${escapeHtml(e.category)} · ${fmtDate(e.date)}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="amt ${e.type}">${e.type==='income' ? '+' : '−'}${fmt(e.amount)}</div>
+            <button class="del" data-del-tx="${e.id}" aria-label="Delete transaction">✕</button>
+          </div>
+        </div>`).join('');
+    }
+
+    historyResult.innerHTML = html;
+    historyResult.style.display = 'block';
+    historyResult.querySelectorAll('[data-del-goal]').forEach(btn =>
+      btn.addEventListener('click', () => deleteReachedGoal(btn.dataset.delGoal)));
+    historyResult.querySelectorAll('[data-del-bill]').forEach(btn =>
+      btn.addEventListener('click', () => deleteHistoryBill(Number(btn.dataset.delBill))));
+    historyResult.querySelectorAll('[data-del-tx]').forEach(btn =>
+      btn.addEventListener('click', () => deleteHistoryTx(Number(btn.dataset.delTx))));
+  }
+
+  // Deleting a bill from the history view removes it (and any linked
+  // transaction) completely, then refreshes the history so it disappears.
+  function deleteHistoryBill(id){
+    removeBill(id);
+    renderHistory();
+  }
+
+  // Deleting a transaction from the history view removes it completely,
+  // then refreshes the history so it disappears.
+  function deleteHistoryTx(id){
+    removeEntry(id);
+    renderHistory();
+  }
+
+  (function init(){
+    loadData();
+    renderCategoryOptions(); // reflect any custom categories that were loaded
+    if(goal.target){
+      goalNameEl.value = goal.name || '';
+      goalTargetEl.value = goal.target || '';
+      goalSavedEl.value = goal.saved || '';
+      goalStartEl.value = goal.start || new Date().toISOString().slice(0,10);
+    }
+    renderTx();
+    renderBills();
+    renderGoal();
+    renderHistory();
+  })();
+})();
+</script>
+</body>
+</html>
