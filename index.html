@@ -140,6 +140,12 @@
     font-size:9px;font-weight:800;text-transform:uppercase;padding:2px 7px;border-radius:999px;
     background:var(--red);color:#fff;margin-left:6px;letter-spacing:.03em;
   }
+  .badge.recur{background:var(--lav);}
+  .recur-check{
+    display:flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:var(--ink-soft);
+    margin:-2px 0 12px;cursor:pointer;
+  }
+  .recur-check input{width:16px;height:16px;accent-color:var(--lav);cursor:pointer;}
 
   /* Transactions */
   .tape-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:0 2px;}
@@ -239,7 +245,10 @@
       <div class="field"><label for="goalName">Saving for</label><input type="text" id="goalName" placeholder="e.g. new laptop"></div>
       <div class="field"><label for="goalTarget">Target</label><input type="number" id="goalTarget" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
     </div>
-    <div class="field"><label for="goalSaved">Saved so far</label><input type="number" id="goalSaved" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+    <div class="row2">
+      <div class="field"><label for="goalSaved">Saved so far</label><input type="number" id="goalSaved" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
+      <div class="field"><label for="goalStart">Start date</label><input type="date" id="goalStart"></div>
+    </div>
     <button class="btn gold" id="saveGoalBtn">Update goal</button>
 
     <div id="goalResult" style="margin-top:14px;display:none;">
@@ -249,6 +258,10 @@
       </div>
       <div class="progress-track"><div class="progress-fill" id="goalFill" style="width:0%;"></div></div>
       <div class="progress-caption" id="goalCaption">0% there — you've got this! 🌟</div>
+      <div class="progress-caption" id="goalStartCaption" style="margin-top:4px;"></div>
+      <div class="hist-subhead" id="goalHistoryHead" style="display:none;">Update history</div>
+      <div id="goalHistory"></div>
+      <button class="btn gold" id="newGoalBtn" style="display:none;margin-top:12px;">🎉 Start a new goal</button>
     </div>
   </section>
 
@@ -259,6 +272,7 @@
       <div class="field"><label for="billAmt">Amount</label><input type="number" id="billAmt" inputmode="decimal" step="0.01" min="0" placeholder="0.00"></div>
     </div>
     <div class="field"><label for="billDue">Due date</label><input type="date" id="billDue"></div>
+    <label class="recur-check"><input type="checkbox" id="billRecurring"> 🔁 Repeats monthly</label>
     <button class="btn expense" id="addBillBtn">Add bill</button>
 
     <div class="save-remaining" id="monthlyPaidBox" style="margin-top:14px;">
@@ -288,7 +302,6 @@
     <div id="historyResult" style="display:none;"></div>
   </section>
 
-  <footer>data stays in this page only — nothing is sent anywhere 💌</footer>
 </div>
 
 <script>
@@ -298,7 +311,8 @@
   // you host this file on your own site.
   let entries = [];
   let bills = [];
-  let goal = { name:'', target:0, saved:0, reachedDate:null };
+  let goal = { name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+  let goalArchive = []; // previously completed goals, kept for month-history lookups
   let currentType = 'income';
   let filter = 'all';
 
@@ -318,16 +332,23 @@
   const goalNameEl = document.getElementById('goalName');
   const goalTargetEl = document.getElementById('goalTarget');
   const goalSavedEl = document.getElementById('goalSaved');
+  const goalStartEl = document.getElementById('goalStart');
   const saveGoalBtn = document.getElementById('saveGoalBtn');
   const goalResult = document.getElementById('goalResult');
   const goalTitle = document.getElementById('goalTitle');
   const goalRemaining = document.getElementById('goalRemaining');
   const goalFill = document.getElementById('goalFill');
   const goalCaption = document.getElementById('goalCaption');
+  const goalStartCaption = document.getElementById('goalStartCaption');
+  const goalHistoryHead = document.getElementById('goalHistoryHead');
+  const goalHistoryEl = document.getElementById('goalHistory');
+  const newGoalBtn = document.getElementById('newGoalBtn');
+  goalStartEl.value = new Date().toISOString().slice(0,10);
 
   const billNameEl = document.getElementById('billName');
   const billAmtEl = document.getElementById('billAmt');
   const billDueEl = document.getElementById('billDue');
+  const billRecurringEl = document.getElementById('billRecurring');
   const addBillBtn = document.getElementById('addBillBtn');
   const billsList = document.getElementById('billsList');
 
@@ -380,6 +401,7 @@
   addTxBtn.addEventListener('click', addEntry);
   amountEl.addEventListener('keydown', e => { if(e.key === 'Enter') addEntry(); });
   saveGoalBtn.addEventListener('click', updateGoal);
+  newGoalBtn.addEventListener('click', startNewGoal);
   addBillBtn.addEventListener('click', addBill);
 
   function setType(t){
@@ -472,13 +494,69 @@
     if(!target || target <= 0){ flashError(goalTargetEl); return; }
     const saved = Math.max(0, parseFloat(goalSavedEl.value) || 0);
     const reached = saved >= target;
+    const name = goalNameEl.value.trim() || 'your goal';
+    const prevSaved = goal.saved || 0;
+    const delta = Math.round((saved - prevSaved) * 100) / 100;
+    const history = goal.history || [];
+
+    let txId = null;
+    if(delta > 0){
+      // Money moving into savings comes out of the current balance as an expense.
+      txId = Date.now();
+      entries.unshift({
+        id: txId,
+        type: 'expense',
+        amount: delta,
+        note: `Saved toward ${name}`,
+        category: 'Savings',
+        date: new Date().toISOString().slice(0,10)
+      });
+    } else if(delta < 0){
+      // Reducing the saved amount puts that money back into the balance.
+      txId = Date.now();
+      entries.unshift({
+        id: txId,
+        type: 'income',
+        amount: Math.abs(delta),
+        note: `Withdrew from ${name}`,
+        category: 'Savings',
+        date: new Date().toISOString().slice(0,10)
+      });
+    }
+
+    if(delta !== 0){
+      history.unshift({
+        id: Date.now() + 1,
+        date: new Date().toISOString().slice(0,10),
+        amount: delta,
+        total: saved,
+        txId
+      });
+    }
+
     goal = {
-      name: goalNameEl.value.trim() || 'your goal',
+      name,
       target,
       saved,
-      reachedDate: reached ? (goal.reachedDate || new Date().toISOString().slice(0,10)) : null
+      start: goalStartEl.value || new Date().toISOString().slice(0,10),
+      reachedDate: reached ? (goal.reachedDate || new Date().toISOString().slice(0,10)) : null,
+      history
     };
     renderGoal();
+    renderTx();
+  }
+
+  function startNewGoal(){
+    if(goal.target){
+      goalArchive.push(goal);
+    }
+    goal = { name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+    goalNameEl.value = '';
+    goalTargetEl.value = '';
+    goalSavedEl.value = '';
+    goalStartEl.value = new Date().toISOString().slice(0,10);
+    renderGoal();
+    goalNameEl.focus();
   }
 
   function renderGoal(){
@@ -492,6 +570,34 @@
     goalCaption.textContent = remaining > 0
       ? `${pct}% there — you've got this! 🌟`
       : `100% there — go you! 🎉`;
+    newGoalBtn.style.display = (remaining <= 0) ? 'block' : 'none';
+
+    const history = goal.history || [];
+    if(history.length === 0){
+      goalHistoryHead.style.display = 'none';
+      goalHistoryEl.innerHTML = '';
+    } else {
+      goalHistoryHead.style.display = 'block';
+      goalHistoryEl.innerHTML = history.map(h => `
+        <div class="hist-tx">
+          <div>
+            <div class="note">${h.amount >= 0 ? 'Added' : 'Reduced by'} ${fmt(Math.abs(h.amount))}</div>
+            <div class="date">${fmtDate(h.date)} · total ${fmt(h.total)}</div>
+          </div>
+          <div class="amt ${h.amount >= 0 ? 'expense' : 'income'}">${h.amount >= 0 ? '−' : '+'}${fmt(Math.abs(h.amount))}</div>
+        </div>`).join('');
+    }
+
+    if(goal.start){
+      const today = new Date(); today.setHours(0,0,0,0);
+      const start = new Date(goal.start + 'T00:00:00');
+      const days = Math.max(0, Math.round((today - start) / 86400000));
+      goalStartCaption.textContent = days === 0
+        ? `Started today (${fmtDate(goal.start)})`
+        : `Started ${fmtDate(goal.start)} · ${days} day${days===1?'':'s'} in`;
+    } else {
+      goalStartCaption.textContent = '';
+    }
   }
 
   /* ---- Bills ---- */
@@ -506,21 +612,82 @@
       amount: Math.round(amt*100)/100,
       due: billDueEl.value,
       paid: false,
-      paidDate: null
+      paidDate: null,
+      recurring: billRecurringEl.checked,
+      txId: null
     });
-    billNameEl.value=''; billAmtEl.value=''; billDueEl.value='';
+    billNameEl.value=''; billAmtEl.value=''; billDueEl.value=''; billRecurringEl.checked = false;
     renderBills();
   }
 
-  function toggleBill(id){
-    bills = bills.map(b => {
-      if(b.id !== id) return b;
-      const paid = !b.paid;
-      return {...b, paid, paidDate: paid ? new Date().toISOString().slice(0,10) : null};
-    });
-    renderBills();
+  // Adds one calendar month to an ISO date string, keeping the day-of-month
+  // where possible (e.g. Jan 31 + 1 month -> Feb 28/29).
+  function addOneMonth(iso){
+    const d = new Date(iso + 'T00:00:00');
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + 1);
+    const daysInNext = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+    d.setDate(Math.min(day, daysInNext));
+    return d.toISOString().slice(0,10);
   }
-  function removeBill(id){ bills = bills.filter(b => b.id !== id); renderBills(); }
+
+  function toggleBill(id){
+    const bill = bills.find(b => b.id === id);
+    if(!bill) return;
+
+    if(!bill.paid){
+      // Marking as paid: log it as an expense transaction pulled from balance.
+      const txId = Date.now();
+      entries.unshift({
+        id: txId,
+        type: 'expense',
+        amount: bill.amount,
+        note: bill.name,
+        category: 'Bills',
+        date: new Date().toISOString().slice(0,10)
+      });
+      bill.paid = true;
+      bill.paidDate = new Date().toISOString().slice(0,10);
+      bill.txId = txId;
+
+      // If it's a recurring bill, queue up next month's instance now
+      // so it shows as upcoming/due.
+      if(bill.recurring){
+        bills.push({
+          id: Date.now() + 1,
+          name: bill.name,
+          amount: bill.amount,
+          due: addOneMonth(bill.due),
+          paid: false,
+          paidDate: null,
+          recurring: true,
+          txId: null
+        });
+      }
+    } else {
+      // Undo: remove the linked expense transaction and reset the bill.
+      if(bill.txId){
+        entries = entries.filter(e => e.id !== bill.txId);
+      }
+      bill.paid = false;
+      bill.paidDate = null;
+      bill.txId = null;
+    }
+
+    renderBills();
+    renderTx();
+  }
+
+  function removeBill(id){
+    const bill = bills.find(b => b.id === id);
+    if(bill && bill.txId){
+      entries = entries.filter(e => e.id !== bill.txId);
+    }
+    bills = bills.filter(b => b.id !== id);
+    renderBills();
+    renderTx();
+  }
 
   function billStatus(b){
     if(b.paid) return {cls:'paid', label:'Paid ✓'};
@@ -557,7 +724,7 @@
       <div class="bill ${b.paid ? 'paid' : st.cls}">
         <button class="check" data-id="${b.id}" aria-label="Toggle paid">${b.paid ? '✓' : ''}</button>
         <div class="info">
-          <div class="name">${escapeHtml(b.name)}${(!b.paid && st.cls==='overdue') ? '<span class="badge">Overdue</span>' : ''}</div>
+          <div class="name">${escapeHtml(b.name)}${b.recurring ? '<span class="badge recur">🔁 Monthly</span>' : ''}${(!b.paid && st.cls==='overdue') ? '<span class="badge">Overdue</span>' : ''}</div>
           <div class="due">${b.paid ? `Due ${fmtDate(b.due)} · Paid ${fmtDate(b.paidDate)}` : st.label} · ${fmt(b.amount)}</div>
         </div>
         <button class="del" data-del="${b.id}" aria-label="Delete bill">✕</button>
@@ -596,16 +763,43 @@
       <div class="hist-net">Net: ${net >= 0 ? '+' : '−'}${fmt(Math.abs(net))}</div>
     `;
 
-    if(goal.reachedDate && inMonth(goal.reachedDate)){
-      html += `
-        <div class="hist-subhead">Savings goal</div>
+    const catTotals = {};
+    monthEntries.filter(e => e.type === 'expense').forEach(e => {
+      catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
+    });
+    const catList = Object.entries(catTotals).sort((a,b) => b[1] - a[1]);
+
+    if(catList.length > 0){
+      html += `<div class="hist-subhead">Spent by category</div>`;
+      html += catList.map(([cat, amt]) => {
+        const pct = expense > 0 ? Math.round((amt / expense) * 100) : 0;
+        return `
+        <div class="hist-bill">
+          <div>
+            <div class="name">${escapeHtml(cat)}</div>
+            <div class="dates">${pct}% of spending</div>
+          </div>
+          <div class="amt">${fmt(amt)}</div>
+        </div>`;
+      }).join('');
+    }
+
+    const reachedGoalsThisMonth = [...goalArchive, goal].filter(g => g.reachedDate && inMonth(g.reachedDate));
+    if(reachedGoalsThisMonth.length > 0){
+      html += `<div class="hist-subhead">Savings goal${reachedGoalsThisMonth.length>1?'s':''}</div>`;
+      html += reachedGoalsThisMonth.map(g => {
+        const daysToReach = g.start
+          ? Math.max(0, Math.round((new Date(g.reachedDate + 'T00:00:00') - new Date(g.start + 'T00:00:00')) / 86400000))
+          : null;
+        return `
         <div class="hist-bill" style="background:var(--gold-bg);">
           <div>
-            <div class="name">🎉 ${escapeHtml(goal.name)} — reached!</div>
-            <div class="dates">Hit on ${fmtDate(goal.reachedDate)}</div>
+            <div class="name">🎉 ${escapeHtml(g.name)} — reached!</div>
+            <div class="dates">Hit on ${fmtDate(g.reachedDate)}${daysToReach !== null ? ` · took ${daysToReach} day${daysToReach===1?'':'s'}` : ''}</div>
           </div>
-          <div class="amt">${fmt(goal.target)}</div>
+          <div class="amt">${fmt(g.target)}</div>
         </div>`;
+      }).join('');
     }
 
     html += `<div class="hist-subhead">Bills paid (${paidBills.length})</div>`;
