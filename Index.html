@@ -182,6 +182,7 @@
   .hist-bill .name{font-weight:800;}
   .hist-bill .dates{font-size:11px;color:var(--ink-soft);font-weight:700;}
   .hist-bill .amt{font-weight:800;white-space:nowrap;}
+  .hist-bill .del{border:none;background:none;color:#a89bc2;font-size:15px;cursor:pointer;padding:2px 4px;}
   .hist-tx{
     display:flex;justify-content:space-between;align-items:center;gap:8px;
     padding:9px 4px;border-bottom:1px dashed var(--lav-bg);font-size:13px;
@@ -306,12 +307,10 @@
 
 <script>
 (function(){
-  // Data persists between visits using the built-in storage API —
-  // see loadData()/saveData() near the bottom of this script.
   const STORAGE_KEY = 'moneyShark';
   let entries = [];
   let bills = [];
-  let goal = { name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+  let goal = { id:null, name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
   let goalArchive = []; // previously completed goals, kept for month-history lookups
   let currentType = 'income';
   let filter = 'all';
@@ -435,21 +434,29 @@
   }
 
   /* ---- Persistence ---- */
-  function saveData(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      entries,bills,goal,goalArchive,categories
-    }));
+  async function saveData(){
+    try{
+      await window.storage.set(STORAGE_KEY, JSON.stringify({
+        entries,bills,goal,goalArchive,categories
+      }));
+    }catch(err){
+      console.error('Storage save error:', err);
+    }
   }
 
-  function loadData(){
-    const result=localStorage.getItem(STORAGE_KEY);
-    if(!result) return;
-    const data=JSON.parse(result);
-    entries=data.entries||[];
-    bills=data.bills||[];
-    goal=data.goal||goal;
-    goalArchive=data.goalArchive||[];
-    if(data.categories&&data.categories.length) categories=data.categories;
+  async function loadData(){
+    try{
+      const result = await window.storage.get(STORAGE_KEY);
+      if(!result) return;
+      const data = JSON.parse(result.value);
+      entries=data.entries||[];
+      bills=data.bills||[];
+      goal=data.goal||goal;
+      goalArchive=data.goalArchive||[];
+      if(data.categories&&data.categories.length) categories=data.categories;
+    }catch(err){
+      console.log('No existing data found, starting fresh.');
+    }
   }
 
   /* ---- Transactions ---- */
@@ -555,6 +562,7 @@
     }
 
     goal = {
+      id: goal.id || ('goal_' + Date.now()),
       name,
       target,
       saved,
@@ -571,7 +579,7 @@
     if(goal.target){
       goalArchive.push(goal);
     }
-    goal = { name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
+    goal = { id:null, name:'', target:0, saved:0, start:null, reachedDate:null, history:[] };
     goalNameEl.value = '';
     goalTargetEl.value = '';
     goalSavedEl.value = '';
@@ -759,6 +767,20 @@
     billsList.querySelectorAll('[data-del]').forEach(btn => btn.addEventListener('click', () => removeBill(Number(btn.dataset.del))));
   }
 
+  /* ---- Goal history deletion ---- */
+  function deleteReachedGoal(id){
+    if(goal.id && String(goal.id) === String(id)){
+      // It's still the active goal — just clear its "reached" mark so it
+      // drops out of history. The goal itself (and its saved progress) stays.
+      goal = { ...goal, reachedDate: null };
+      renderGoal();
+    } else {
+      goalArchive = goalArchive.filter(g => String(g.id) !== String(id));
+    }
+    renderHistory();
+    saveData();
+  }
+
   /* ---- Month history ---- */
   function renderHistory(){
     const val = historyMonthEl.value;
@@ -822,7 +844,10 @@
             <div class="name">🎉 ${escapeHtml(g.name)} — reached!</div>
             <div class="dates">Hit on ${fmtDate(g.reachedDate)}${daysToReach !== null ? ` · took ${daysToReach} day${daysToReach===1?'':'s'}` : ''}</div>
           </div>
-          <div class="amt">${fmt(g.target)}</div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <div class="amt">${fmt(g.target)}</div>
+            <button class="del" data-del-goal="${g.id}" aria-label="Remove from history">✕</button>
+          </div>
         </div>`;
       }).join('');
     }
@@ -869,10 +894,12 @@
 
     historyResult.innerHTML = html;
     historyResult.style.display = 'block';
+    historyResult.querySelectorAll('[data-del-goal]').forEach(btn =>
+      btn.addEventListener('click', () => deleteReachedGoal(btn.dataset.delGoal)));
   }
 
-  (function init(){
-    loadData();
+  (async function init(){
+    await loadData();
     renderCategoryOptions(); // reflect any custom categories that were loaded
     if(goal.target){
       goalNameEl.value = goal.name || '';
